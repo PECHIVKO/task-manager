@@ -10,12 +10,6 @@ import (
 	"github.com/go-chi/chi"
 )
 
-// type Column struct {
-// 	ID          int    `json:"column_id"`
-// 	Name        string `json:"column_name"`
-// 	Position string `json:"position"`
-// }
-
 type Handler struct {
 	useCase column.UseCase
 }
