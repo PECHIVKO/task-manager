@@ -28,9 +28,10 @@ type createInput struct {
 func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	input := new(createInput)
 	json.NewDecoder(r.Body).Decode(&input)
-	log.Println(input)
+
 	err := h.useCase.CreateColumn(r.Context(), input.Name, input.ProjectID)
 	if err != nil {
+		log.Println(err)
 		respondWithError(w, http.StatusInternalServerError, err.Error())
 	} else {
 		respondwithJSON(w, http.StatusCreated, map[string]string{"message": "Column successfully created"})
@@ -59,6 +60,7 @@ func (h *Handler) UpdateName(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) Move(w http.ResponseWriter, r *http.Request) {
 	id, _ := strconv.Atoi(chi.URLParam(r, "id"))
 	pos, _ := strconv.Atoi(chi.URLParam(r, "pos"))
+
 	err := h.useCase.MoveColumnToPosition(r.Context(), id, pos)
 	if err != nil {
 		log.Println(err)
@@ -68,15 +70,12 @@ func (h *Handler) Move(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-type idInput struct {
-	ID string `json:"column_id"`
-}
-
 func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
-	id, err := strconv.Atoi(chi.URLParam(r, "id"))
+	id, _ := strconv.Atoi(chi.URLParam(r, "id"))
 
-	err = h.useCase.DeleteColumn(r.Context(), id)
+	err := h.useCase.DeleteColumn(r.Context(), id)
 	if err != nil {
+		log.Println(err)
 		respondWithError(w, http.StatusInternalServerError, err.Error())
 	} else {
 		respondwithJSON(w, http.StatusOK, map[string]string{"message": "Column successfully deleted"})
@@ -84,10 +83,8 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
+	id, _ := strconv.Atoi(chi.URLParam(r, "id"))
 
-	id := chi.URLParam(r, "id")
-
-	log.Println(id)
 	col, err := h.useCase.GetColumn(r.Context(), id)
 	if err != nil {
 		log.Println(err)
@@ -98,7 +95,8 @@ func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) Fetch(w http.ResponseWriter, r *http.Request) {
-	projectID := chi.URLParam(r, "project_id")
+	projectID, _ := strconv.Atoi(chi.URLParam(r, "project_id"))
+
 	cols, err := h.useCase.FetchColumns(r.Context(), projectID)
 	if err != nil {
 		log.Println(err)
@@ -109,11 +107,15 @@ func (h *Handler) Fetch(w http.ResponseWriter, r *http.Request) {
 }
 
 func respondwithJSON(w http.ResponseWriter, code int, payload interface{}) {
-	response, _ := json.Marshal(payload)
-
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(code)
-	w.Write(response)
+	response, err := json.Marshal(payload)
+	if err != nil {
+		log.Println(err)
+		respondWithError(w, http.StatusInternalServerError, err.Error())
+	} else {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(code)
+		w.Write(response)
+	}
 }
 
 // respondwithError return error message

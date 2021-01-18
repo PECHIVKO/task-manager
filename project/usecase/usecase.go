@@ -25,22 +25,22 @@ func (p ProjectUseCase) CreateProject(ctx context.Context, name, description str
 	return p.projectRepo.CreateProject(ctx, pr)
 }
 
-func (p ProjectUseCase) UpdateProject(ctx context.Context, name, description string, id int) error {
+func (p ProjectUseCase) UpdateProject(ctx context.Context, name, description string, projectID int) error {
 
 	pr := &models.Project{
-		ID:          id,
+		ID:          projectID,
 		Name:        name,
 		Description: description,
 	}
 	return p.projectRepo.UpdateProject(ctx, pr)
 }
 
-func (p ProjectUseCase) DeleteProject(ctx context.Context, id string) error {
-	return p.projectRepo.DeleteProject(ctx, id)
+func (p ProjectUseCase) DeleteProject(ctx context.Context, projectID int) error {
+	return p.projectRepo.DeleteProject(ctx, projectID)
 }
 
-func (p ProjectUseCase) GetProject(ctx context.Context, id string) (*models.Project, error) {
-	return p.projectRepo.GetProject(ctx, id)
+func (p ProjectUseCase) GetProject(ctx context.Context, projectID int) (*models.Project, error) {
+	return p.projectRepo.GetProject(ctx, projectID)
 }
 
 func (p ProjectUseCase) FetchProjects(ctx context.Context) ([]*models.Project, error) {

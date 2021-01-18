@@ -28,9 +28,10 @@ type createInput struct {
 func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	input := new(createInput)
 	json.NewDecoder(r.Body).Decode(&input)
-	log.Println(input)
+
 	err := h.useCase.CreateProject(r.Context(), input.Name, input.Description)
 	if err != nil {
+		log.Println(err)
 		respondWithError(w, http.StatusInternalServerError, err.Error())
 	} else {
 		respondwithJSON(w, http.StatusCreated, map[string]string{"message": "Project successfully created"})
@@ -57,17 +58,12 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-type idInput struct {
-	ID string `json:"project_id"`
-}
-
 func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
-	input := new(idInput)
-	input.ID = chi.URLParam(r, "id")
+	id, _ := strconv.Atoi(chi.URLParam(r, "id"))
 
-	log.Println(input)
-	err := h.useCase.DeleteProject(r.Context(), input.ID)
+	err := h.useCase.DeleteProject(r.Context(), id)
 	if err != nil {
+		log.Println(err)
 		respondWithError(w, http.StatusInternalServerError, err.Error())
 	} else {
 		respondwithJSON(w, http.StatusOK, map[string]string{"message": "Project successfully deleted"})
@@ -75,11 +71,9 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
-	input := new(idInput)
-	input.ID = chi.URLParam(r, "id")
+	id, _ := strconv.Atoi(chi.URLParam(r, "id"))
 
-	log.Println(input)
-	pr, err := h.useCase.GetProject(r.Context(), input.ID)
+	pr, err := h.useCase.GetProject(r.Context(), id)
 	if err != nil {
 		log.Println(err)
 		respondWithError(w, http.StatusInternalServerError, err.Error())
@@ -89,7 +83,6 @@ func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) Fetch(w http.ResponseWriter, r *http.Request) {
-
 	prs, err := h.useCase.FetchProjects(r.Context())
 	if err != nil {
 		log.Println(err)
@@ -100,11 +93,15 @@ func (h *Handler) Fetch(w http.ResponseWriter, r *http.Request) {
 }
 
 func respondwithJSON(w http.ResponseWriter, code int, payload interface{}) {
-	response, _ := json.Marshal(payload)
-
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(code)
-	w.Write(response)
+	response, err := json.Marshal(payload)
+	if err != nil {
+		log.Println(err)
+		respondWithError(w, http.StatusInternalServerError, err.Error())
+	} else {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(code)
+		w.Write(response)
+	}
 }
 
 // respondwithError return error message

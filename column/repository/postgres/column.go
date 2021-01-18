@@ -11,27 +11,40 @@ import (
 
 const (
 	insertColumnQuery = `insert into columns (column_name, project_id, position)
-								  values ($1, $2, (select count(*)
-								  from columns where project_id = $2));`
+								  values ($1, $2, (select count(*) from columns where project_id = $2));`
 	moveLeftQuery = `update columns
 					 set position = position + 1
-					 where project_id = $3
+					 where project_id = (select project_id from columns where column_id = $1)
 					 	and position >= $2
-						and position < $1;`
+						and position < (select position from columns where column_id = $1);`
 	moveRightQuery = `update columns
 					  set position = position - 1
-					  where project_id = $3
+					  where project_id = (select project_id from columns where column_id = $1)
 						and position <= $2
-						and position > $1;`
+						and position > (select position from columns where column_id = $1);`
+	deleteColumnQuery = "delete from columns where column_id = $1;"
+	moveTasksQuery    = `update tasks set column_id = (
+							select coalesce (
+								(select column_id from columns where project_id =
+										(select project_id from columns where column_id = $1)
+									and position <
+										(select position from columns where column_id = $1)
+									order by position desc limit 1),
+								(select column_id from columns where project_id =
+										(select project_id from columns where column_id = $1)
+									and position >
+								(select position from columns where column_id = $1)
+									order by position limit 1)))
+						 where column_id =$1`
 	checkForUniqueColumnName    = "select not exists (select 1 from columns where project_id = $1 and column_name = $2);"
-	deleteColumnQuery           = "delete from columns where column_id = $1;"
-	getProjectColumnsCountQuery = "select count(*) from columns where project_id = $1;"
+	checkForColumnExists        = "select exists (select 1 from columns where column_id = $1);"
+	checkForProjectExists       = "select exists (select 1 from projects where project_id = $1);"
+	getProjectColumnsCountQuery = "select count(*) from columns where project_id = (select project_id from columns where column_id = $1);"
 	getColumnQuery              = "select * from columns where column_id = $1;"
 	fetchColumnsQuery           = "select * from columns where project_id = $1 order by position;"
 	updateColumnNameQuery       = "update columns set column_name = $1 where column_id = $2;"
 	moveToPositionQuery         = "update columns set position = $2 where column_id = $1;"
 	getCurrentPositionQuery     = "select position from columns where column_id = $1;"
-	getCurrentProjectIDQuery    = "select project_id from columns where column_id = $1;"
 )
 
 type Column struct {
@@ -54,17 +67,45 @@ func NewColumnRepository(dbConn *sql.DB) *ColumnRepository {
 func isUniqueColumnName(tx *sql.Tx, ctx context.Context, projectID int, name string) (isUnique bool, err error) {
 	err = tx.QueryRow(checkForUniqueColumnName, projectID, name).Scan(&isUnique)
 	if err != nil {
-		log.Println(err)
+		err = fmt.Errorf("column repository: isUniqueColumnName() func error : %w", err)
 		return false, err
 	}
 	return isUnique, err
+}
+
+func isColumnExists(tx *sql.Tx, ctx context.Context, columnID int) (isExists bool, err error) {
+	err = tx.QueryRow(checkForColumnExists, columnID).Scan(&isExists)
+	if err != nil {
+		err = fmt.Errorf("column repository: isColumnExists() func error : %w", err)
+		return false, err
+	}
+	return isExists, err
+}
+
+func isProjectExists(tx *sql.Tx, ctx context.Context, projectID int) (isExists bool, err error) {
+	err = tx.QueryRow(checkForProjectExists, projectID).Scan(&isExists)
+	if err != nil {
+		err = fmt.Errorf("column repository: isProjectExists() func error : %w", err)
+		return false, err
+	}
+	return isExists, err
+}
+
+func getProjectColumnsCount(tx *sql.Tx, ctx context.Context, columnID int) (count int, err error) {
+
+	err = tx.QueryRowContext(ctx, getProjectColumnsCountQuery, columnID).Scan(&count)
+	if err != nil {
+		err = fmt.Errorf("column repository: getProjectColumnsCount() func error : %w", err)
+		return -1, err
+	}
+	return count, err
 }
 
 func (r ColumnRepository) CreateColumn(ctx context.Context, c *models.Column) error {
 
 	tx, err := r.DB.BeginTx(ctx, nil)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 	defer tx.Rollback()
 
@@ -79,53 +120,62 @@ func (r ColumnRepository) CreateColumn(ctx context.Context, c *models.Column) er
 	}
 
 	model := toColumn(c)
-	_, err = tx.ExecContext(ctx, insertColumnQuery, model.Name, model.Project)
+
+	result, err := tx.ExecContext(ctx, insertColumnQuery, model.Name, model.Project)
 	if err != nil {
-		//wrap  everything with errors package!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+		err = fmt.Errorf("column repository: CreateColumn: exec insertColumnQuery error : %w", err)
 		return err
 	}
+	rows, err := result.RowsAffected()
+	if err != nil {
+		err = fmt.Errorf("column repository: CreateColumn: get RowsAffected error : %w", err)
+		return err
+	}
+
 	err = tx.Commit()
 	if err != nil {
 		return err
 	}
 
+	log.Println("created columns: ", rows)
 	return err
 }
 
-func (r ColumnRepository) GetColumn(ctx context.Context, id string) (*models.Column, error) {
-	tx, err := r.DB.BeginTx(ctx, nil)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer tx.Rollback()
+func (r ColumnRepository) GetColumn(ctx context.Context, columnID int) (*models.Column, error) {
 
 	column := new(Column)
 
-	err = tx.QueryRowContext(ctx, getColumnQuery, id).Scan(&column.ID, &column.Project, &column.Position, &column.Name)
+	err := r.DB.QueryRowContext(ctx, getColumnQuery, columnID).Scan(&column.ID, &column.Project, &column.Position, &column.Name)
 
 	if err != nil {
-		log.Println(err)
-		return nil, err
-	}
-
-	err = tx.Commit()
-	if err != nil {
+		err = fmt.Errorf("column repository: GetColumn: exec getColumnQuery error : %w", err)
 		return nil, err
 	}
 
 	return toModel(column), err
 }
 
-func (r ColumnRepository) FetchColumns(ctx context.Context, projectID string) ([]*models.Column, error) {
+func (r ColumnRepository) FetchColumns(ctx context.Context, projectID int) ([]*models.Column, error) {
 
 	tx, err := r.DB.BeginTx(ctx, nil)
 	if err != nil {
-		log.Fatal(err)
+		return nil, err
 	}
 	defer tx.Rollback()
 
+	isExists, err := isProjectExists(tx, ctx, projectID)
+	if err != nil {
+		return nil, err
+	}
+
+	if !isExists {
+		err = fmt.Errorf("Project ID %d does not exists", projectID)
+		return nil, err
+	}
+
 	rows, err := tx.QueryContext(ctx, fetchColumnsQuery, projectID)
 	if err != nil {
+		err = fmt.Errorf("column repository: FetchColumns: get RowsAffected error : %w", err)
 		return nil, err
 	}
 	defer rows.Close()
@@ -136,7 +186,8 @@ func (r ColumnRepository) FetchColumns(ctx context.Context, projectID string) ([
 		column := new(Column)
 		err := rows.Scan(&column.ID, &column.Project, &column.Position, &column.Name)
 		if err != nil {
-			fmt.Println(err)
+			err = fmt.Errorf("column repository: FetchColumns: rows.Scan() error : %w", err)
+			log.Println(err)
 			continue
 		}
 		columns = append(columns, column)
@@ -150,47 +201,57 @@ func (r ColumnRepository) FetchColumns(ctx context.Context, projectID string) ([
 	return toModels(columns), err
 }
 
-func getProjectColumnsCount(tx *sql.Tx, ctx context.Context, id int) (count int, err error) {
-
-	projectID, err := getProjectID(tx, ctx, id)
-	if err != nil {
-		return -1, err
-	}
-
-	err = tx.QueryRowContext(ctx, getProjectColumnsCountQuery, projectID).Scan(&count)
-	if err != nil {
-		return -1, err
-	}
-	return count, err
-}
-
-func (r ColumnRepository) DeleteColumn(ctx context.Context, id int) error {
+func (r ColumnRepository) DeleteColumn(ctx context.Context, columnID int) error {
 
 	tx, err := r.DB.BeginTx(ctx, nil)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 	defer tx.Rollback()
 
-	projectColumnsCount, err := getProjectColumnsCount(tx, ctx, id)
+	isExists, err := isColumnExists(tx, ctx, columnID)
 	if err != nil {
 		return err
 	}
+
+	if !isExists {
+		err = fmt.Errorf("Column ID %d does not exists", columnID)
+		return err
+	}
+
+	projectColumnsCount, err := getProjectColumnsCount(tx, ctx, columnID)
+	if err != nil {
+		return err
+	}
+
+	var rows int64
 	if projectColumnsCount > 1 {
-		// ADD tasks transporation
-		err = r.MoveColumnToPosition(ctx, id, projectColumnsCount-1)
+		result, err := tx.ExecContext(ctx, moveTasksQuery, columnID)
+		if err != nil {
+			err = fmt.Errorf("column repository: DeleteColumn: exec moveTasksQuery error : %w", err)
+			return err
+		}
+		rows, err = result.RowsAffected()
+		if err != nil {
+			err = fmt.Errorf("column repository: DeleteColumn: get moveTasksQuery RowsAffected error : %w", err)
+			return err
+		}
+
+		err = r.MoveColumnToPosition(ctx, columnID, projectColumnsCount-1)
 		if err != nil {
 			return err
 		}
-		result, err := tx.ExecContext(ctx, deleteColumnQuery, id)
+
+		result, err = tx.ExecContext(ctx, deleteColumnQuery, columnID)
 		if err != nil {
+			err = fmt.Errorf("column repository: DeleteColumn: exec deleteColumnQuery error : %w", err)
 			return err
 		}
-		rows, err := result.RowsAffected()
+		rows, err = result.RowsAffected()
 		if err != nil {
+			err = fmt.Errorf("column repository: DeleteColumn: get deleteColumnQuery RowsAffected error : %w", err)
 			return err
 		}
-		log.Println("deleted rows: ", rows)
 	} else {
 		err = fmt.Errorf("Can not delete last column")
 	}
@@ -199,6 +260,8 @@ func (r ColumnRepository) DeleteColumn(ctx context.Context, id int) error {
 	if err != nil {
 		return err
 	}
+
+	log.Println("deleted columns: ", rows)
 	return err
 }
 
@@ -206,62 +269,70 @@ func (r ColumnRepository) UpdateColumnName(ctx context.Context, c *models.Column
 
 	tx, err := r.DB.BeginTx(ctx, nil)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 	defer tx.Rollback()
 
-	result, err := tx.ExecContext(ctx, updateColumnNameQuery, c.Name, c.ID)
-
+	isExists, err := isColumnExists(tx, ctx, c.ID)
 	if err != nil {
+		return err
+	}
+	if !isExists {
+		err = fmt.Errorf("Column ID %d does not exists", c.ID)
+		return err
+	}
+
+	result, err := tx.ExecContext(ctx, updateColumnNameQuery, c.Name, c.ID)
+	if err != nil {
+		err = fmt.Errorf("column repository: UpdateColumnName: exec query error : %w", err)
 		return err
 	}
 	rows, err := result.RowsAffected()
 	if err != nil {
+		err = fmt.Errorf("column repository: UpdateColumnName: get RowsAffected error : %w", err)
 		return err
 	}
-	log.Println("updated rows: ", rows)
 
 	err = tx.Commit()
 	if err != nil {
 		return err
 	}
 
+	log.Println("updated columns: ", rows)
 	return err
 }
 
-func getProjectID(tx *sql.Tx, ctx context.Context, id int) (projectID int, err error) {
-	err = tx.QueryRowContext(ctx, getCurrentProjectIDQuery, id).Scan(&projectID)
-	if err != nil {
-		return -1, err
-	}
-	return projectID, err
-}
-
-func (r ColumnRepository) MoveColumnToPosition(ctx context.Context, id, position int) error {
+func (r ColumnRepository) MoveColumnToPosition(ctx context.Context, columnID, position int) error {
 
 	tx, err := r.DB.BeginTx(ctx, nil)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 	defer tx.Rollback()
 
-	projectColumnsCount, err := getProjectColumnsCount(tx, ctx, id)
+	isExists, err := isColumnExists(tx, ctx, columnID)
+	if err != nil {
+		return err
+	}
+
+	if !isExists {
+		err = fmt.Errorf("Column ID %d does not exists", columnID)
+		return err
+	}
+
+	projectColumnsCount, err := getProjectColumnsCount(tx, ctx, columnID)
 	if err != nil {
 		return err
 	}
 	if position >= projectColumnsCount {
-		err = fmt.Errorf("columnrepo: Can not move further then last position %d", projectColumnsCount)
+		err = fmt.Errorf("column repository: Can not move further then last position %d", projectColumnsCount)
 		return err
 	}
 
 	var currentPosition int
-	err = tx.QueryRowContext(ctx, getCurrentPositionQuery, id).Scan(&currentPosition)
+	err = tx.QueryRowContext(ctx, getCurrentPositionQuery, columnID).Scan(&currentPosition)
 	if err != nil {
-		return err
-	}
-
-	projectID, err := getProjectID(tx, ctx, id)
-	if err != nil {
+		err = fmt.Errorf("column repository: MoveColumnToPosition: getCurrentPosition query error : %w", err)
 		return err
 	}
 
@@ -276,31 +347,35 @@ func (r ColumnRepository) MoveColumnToPosition(ctx context.Context, id, position
 		return err
 	}
 
-	result, err := tx.ExecContext(ctx, displaceColumnsQuery, currentPosition, position, projectID)
+	result, err := tx.ExecContext(ctx, displaceColumnsQuery, columnID, position)
 	if err != nil {
+		err = fmt.Errorf("column repository: MoveColumnToPosition: exec displaceColumnsQuery error : %w", err)
 		return err
 	}
-	rows, err := result.RowsAffected()
+	displacedRows, err := result.RowsAffected()
 	if err != nil {
+		err = fmt.Errorf("column repository: MoveColumnToPosition: get displacedRowsAffected error : %w", err)
 		return err
 	}
-	log.Println("displaced rows: ", rows)
 
-	result, err = tx.ExecContext(ctx, moveToPositionQuery, id, position)
+	result, err = tx.ExecContext(ctx, moveToPositionQuery, columnID, position)
 	if err != nil {
+		err = fmt.Errorf("column repository: MoveColumnToPosition: exec moveToPositionQuery error : %w", err)
 		return err
 	}
-	rows, err = result.RowsAffected()
+	movedRows, err := result.RowsAffected()
 	if err != nil {
+		err = fmt.Errorf("column repository: MoveColumnToPosition: get movedRowsAffected error : %w", err)
 		return err
 	}
-	log.Println("moved rows: ", rows)
 
 	err = tx.Commit()
 	if err != nil {
 		return err
 	}
 
+	log.Println("displaced columns: ", displacedRows)
+	log.Println("moved columns: ", movedRows)
 	return err
 }
 

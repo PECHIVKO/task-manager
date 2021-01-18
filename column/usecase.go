@@ -7,10 +7,10 @@ import (
 )
 
 type UseCase interface {
-	CreateColumn(ctx context.Context, name string, project_id int) error
-	FetchColumns(ctx context.Context, projectID string) ([]*models.Column, error)
-	GetColumn(ctx context.Context, columnID string) (*models.Column, error)
+	CreateColumn(ctx context.Context, name string, projectID int) error
+	FetchColumns(ctx context.Context, projectID int) ([]*models.Column, error)
+	GetColumn(ctx context.Context, columnID int) (*models.Column, error)
 	DeleteColumn(ctx context.Context, columnID int) error
-	UpdateColumnName(ctx context.Context, name string, id int) error
+	UpdateColumnName(ctx context.Context, name string, columnID int) error
 	MoveColumnToPosition(ctx context.Context, id, position int) error
 }

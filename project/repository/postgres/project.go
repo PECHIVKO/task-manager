@@ -15,11 +15,17 @@ const (
 	initColumnQuery = `insert into columns (column_name, project_id, position)
 					   values ('TODO', $1, 0);`
 	updateProjectQuery = `update projects set project_name = $1, project_description = $2
-					   	  where project_id = $3;`
-	getProjectQuery    = "select * from projects where project_id = $1"
-	fetchProjectsQuery = "select * from projects order by project_name"
-	deleteProjectQuery = "delete from projects where project_id = $1"
-	deleteColumnsQuery = "delete from columns where project_id = $1"
+							 where project_id = $3;`
+	deleteTasksQuery = `delete from tasks where column_id in (
+							select column_id from columns where project_id = $1)`
+	deleteCommentsQuery = `delete from comments where task_id (
+								select task_id from tasks where column_id in (
+									select column_id from columns where project_id = $1))`
+	deleteColumnsQuery    = "delete from columns where project_id = $1"
+	checkForProjectExists = "select exists (select 1 from projects where project_id = $1);"
+	getProjectQuery       = "select * from projects where project_id = $1"
+	fetchProjectsQuery    = "select * from projects order by project_name"
+	deleteProjectQuery    = "delete from projects where project_id = $1"
 )
 
 type Project struct {
@@ -38,11 +44,20 @@ func NewProjectRepository(dbConn *sql.DB) *ProjectRepository {
 	return &repo
 }
 
+func isProjectExists(tx *sql.Tx, ctx context.Context, projectID int) (isExists bool, err error) {
+	err = tx.QueryRow(checkForProjectExists, projectID).Scan(&isExists)
+	if err != nil {
+		err = fmt.Errorf("project repository: isProjectExists() func error : %w", err)
+		return false, err
+	}
+	return isExists, err
+}
+
 func (r ProjectRepository) CreateProject(ctx context.Context, p *models.Project) error {
 
 	tx, err := r.DB.BeginTx(ctx, nil)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 	defer tx.Rollback()
 
@@ -51,48 +66,39 @@ func (r ProjectRepository) CreateProject(ctx context.Context, p *models.Project)
 	var projectID int
 
 	err = tx.QueryRowContext(ctx, insertProjectQuery, model.Name, model.Description).Scan(&projectID)
-
 	if err != nil {
+		err = fmt.Errorf("project repository: CreateProject: exec insertProjectQuery error : %w", err)
 		return err
 	}
 
 	result, err := tx.ExecContext(ctx, initColumnQuery, projectID)
 	if err != nil {
+		err = fmt.Errorf("project repository: CreateProject: exec initColumnQuery error : %w", err)
 		return err
 	}
-
 	rows, err := result.RowsAffected()
 	if err != nil {
+		err = fmt.Errorf("project repository: CreateProject: initColumnQuery get RowsAffected error : %w", err)
 		return err
 	}
-	log.Println("created columns: ", rows)
 
 	err = tx.Commit()
 	if err != nil {
 		return err
 	}
 
+	log.Println("created projects: 1")
+	log.Println("created columns: ", rows)
 	return err
 }
 
-func (r ProjectRepository) GetProject(ctx context.Context, id string) (*models.Project, error) {
-
-	tx, err := r.DB.BeginTx(ctx, nil)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer tx.Rollback()
+func (r ProjectRepository) GetProject(ctx context.Context, projectID int) (*models.Project, error) {
 
 	project := new(Project)
 
-	err = tx.QueryRowContext(ctx, getProjectQuery, id).Scan(&project.ID, &project.Name, &project.Description)
-
+	err := r.DB.QueryRowContext(ctx, getProjectQuery, projectID).Scan(&project.ID, &project.Name, &project.Description)
 	if err != nil {
-		return nil, err
-	}
-
-	err = tx.Commit()
-	if err != nil {
+		err = fmt.Errorf("project repository: GetProject: exec query error : %w", err)
 		return nil, err
 	}
 
@@ -101,13 +107,7 @@ func (r ProjectRepository) GetProject(ctx context.Context, id string) (*models.P
 
 func (r ProjectRepository) FetchProjects(ctx context.Context) ([]*models.Project, error) {
 
-	tx, err := r.DB.BeginTx(ctx, nil)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer tx.Rollback()
-
-	rows, err := tx.QueryContext(ctx, fetchProjectsQuery)
+	rows, err := r.DB.QueryContext(ctx, fetchProjectsQuery)
 	if err != nil {
 		return nil, err
 	}
@@ -125,49 +125,81 @@ func (r ProjectRepository) FetchProjects(ctx context.Context) ([]*models.Project
 		projects = append(projects, project)
 	}
 
-	err = tx.Commit()
-	if err != nil {
-		return nil, err
-	}
-
 	return toModels(projects), nil
 }
 
 // TODO delete coments tasks and columns
-func (r ProjectRepository) DeleteProject(ctx context.Context, id string) error {
+func (r ProjectRepository) DeleteProject(ctx context.Context, projectID int) error {
 
 	tx, err := r.DB.BeginTx(ctx, nil)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 	defer tx.Rollback()
 
-	// deleteTasksQuery := "delete from tasks where column_id in ( select column_id from columns where project_id = $1"
-	result, err := tx.ExecContext(ctx, deleteColumnsQuery, id)
+	isExists, err := isProjectExists(tx, ctx, projectID)
 	if err != nil {
+		return err
+	}
+
+	if !isExists {
+		err = fmt.Errorf("Project ID %d is not exists", projectID)
+		return err
+	}
+
+	result, err := tx.ExecContext(ctx, deleteCommentsQuery, projectID)
+	if err != nil {
+		err = fmt.Errorf("project repository: DeleteProject: exec deleteCommentsQuery error : %w", err)
 		return err
 	}
 	rows, err := result.RowsAffected()
 	if err != nil {
+		err = fmt.Errorf("project repository: DeleteProject: deleteCommentsQuery get RowsAffected error : %w", err)
 		return err
 	}
-	log.Println("deleted columns: ", rows)
+	log.Println("deleted comments: ", rows)
 
-	result, err = tx.ExecContext(ctx, deleteProjectQuery, id)
+	result, err = tx.ExecContext(ctx, deleteTasksQuery, projectID)
 	if err != nil {
+		err = fmt.Errorf("project repository: DeleteProject: exec deleteTasksQuery error : %w", err)
 		return err
 	}
 	rows, err = result.RowsAffected()
 	if err != nil {
+		err = fmt.Errorf("project repository: DeleteProject: deleteTasksQuery get RowsAffected error : %w", err)
 		return err
 	}
-	log.Println("deleted projects: ", rows)
+	log.Println("deleted tasks: ", rows)
+
+	result, err = tx.ExecContext(ctx, deleteColumnsQuery, projectID)
+	if err != nil {
+		err = fmt.Errorf("project repository: DeleteProject: exec deleteColumnsQuery error : %w", err)
+		return err
+	}
+	rows, err = result.RowsAffected()
+	if err != nil {
+		err = fmt.Errorf("project repository: DeleteProject: deleteColumnsQuery get RowsAffected error : %w", err)
+		return err
+	}
+	log.Println("deleted columns: ", rows)
+
+	result, err = tx.ExecContext(ctx, deleteProjectQuery, projectID)
+	if err != nil {
+		err = fmt.Errorf("project repository: DeleteProject: exec deleteProjectQuery error : %w", err)
+		return err
+	}
+	rows, err = result.RowsAffected()
+	if err != nil {
+		err = fmt.Errorf("project repository: DeleteProject: deleteProjectQuery get RowsAffected error : %w", err)
+		return err
+	}
 
 	err = tx.Commit()
 	if err != nil {
 		return err
 	}
 
+	log.Println("deleted projects: ", rows)
 	return err
 }
 
@@ -175,26 +207,37 @@ func (r ProjectRepository) UpdateProject(ctx context.Context, p *models.Project)
 
 	tx, err := r.DB.BeginTx(ctx, nil)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 	defer tx.Rollback()
 
-	result, err := tx.ExecContext(ctx, updateProjectQuery, p.Name, p.Description, p.ID)
-
+	isExists, err := isProjectExists(tx, ctx, p.ID)
 	if err != nil {
+		return err
+	}
+
+	if !isExists {
+		err = fmt.Errorf("Project ID %d does not exists", p.ID)
+		return err
+	}
+
+	result, err := tx.ExecContext(ctx, updateProjectQuery, p.Name, p.Description, p.ID)
+	if err != nil {
+		err = fmt.Errorf("project repository: UpdateProject: exec updateProjectQuery error : %w", err)
 		return err
 	}
 	rows, err := result.RowsAffected()
 	if err != nil {
-		log.Println("result err: ", err)
+		err = fmt.Errorf("project repository: UpdateProject:  get RowsAffected error : %w", err)
+		return err
 	}
-	log.Println("updated projects: ", rows)
 
 	err = tx.Commit()
 	if err != nil {
 		return err
 	}
 
+	log.Println("updated projects: ", rows)
 	return err
 }
 

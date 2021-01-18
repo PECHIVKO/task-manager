@@ -11,11 +11,19 @@ import (
 	colhttp "github.com/PECHIVKO/task-manager/column/delivery/http"
 	columnrepo "github.com/PECHIVKO/task-manager/column/repository/postgres"
 	columnusecase "github.com/PECHIVKO/task-manager/column/usecase"
+	"github.com/PECHIVKO/task-manager/comment"
+	comhttp "github.com/PECHIVKO/task-manager/comment/delivery/http"
+	commentrepo "github.com/PECHIVKO/task-manager/comment/repository/postgres"
+	commentusecase "github.com/PECHIVKO/task-manager/comment/usecase"
 	"github.com/PECHIVKO/task-manager/config"
 	"github.com/PECHIVKO/task-manager/project"
 	phttp "github.com/PECHIVKO/task-manager/project/delivery/http"
 	projectrepo "github.com/PECHIVKO/task-manager/project/repository/postgres"
 	projectusecase "github.com/PECHIVKO/task-manager/project/usecase"
+	"github.com/PECHIVKO/task-manager/task"
+	thttp "github.com/PECHIVKO/task-manager/task/delivery/http"
+	taskrepo "github.com/PECHIVKO/task-manager/task/repository/postgres"
+	taskusecase "github.com/PECHIVKO/task-manager/task/usecase"
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
 	"github.com/go-chi/render"
@@ -30,6 +38,8 @@ type App struct {
 type Usecase struct {
 	projectUC project.UseCase
 	columnUC  column.UseCase
+	taskUC    task.UseCase
+	commentUC comment.UseCase
 }
 
 func NewApp() *App {
@@ -43,10 +53,14 @@ func NewApp() *App {
 func NewUC(db *sql.DB) *Usecase {
 	projectRepo := projectrepo.NewProjectRepository(db)
 	columnRepo := columnrepo.NewColumnRepository(db)
+	taskRepo := taskrepo.NewTaskRepository(db)
+	commentRepo := commentrepo.NewCommentRepository(db)
 
 	return &Usecase{
 		projectUC: projectusecase.NewProjectUseCase(projectRepo),
 		columnUC:  columnusecase.NewColumnUseCase(columnRepo),
+		taskUC:    taskusecase.NewTaskUseCase(taskRepo),
+		commentUC: commentusecase.NewCommentUseCase(commentRepo),
 	}
 }
 
@@ -98,6 +112,8 @@ func (uc *Usecase) Routes() *chi.Mux {
 	router.Route("/", func(r chi.Router) {
 		r.Mount("/projects", phttp.Routes(uc.projectUC))
 		r.Mount("/columns", colhttp.Routes(uc.columnUC))
+		r.Mount("/tasks", thttp.Routes(uc.taskUC))
+		r.Mount("/comments", comhttp.Routes(uc.commentUC))
 	})
 	return router
 }

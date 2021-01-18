@@ -25,27 +25,27 @@ func (c ColumnUseCase) CreateColumn(ctx context.Context, name string, projectID 
 	return c.columnRepo.CreateColumn(ctx, col)
 }
 
-func (c ColumnUseCase) UpdateColumnName(ctx context.Context, name string, id int) error {
+func (c ColumnUseCase) UpdateColumnName(ctx context.Context, name string, columnID int) error {
 
 	col := &models.Column{
-		ID:   id,
+		ID:   columnID,
 		Name: name,
 	}
 	return c.columnRepo.UpdateColumnName(ctx, col)
 }
 
-func (c ColumnUseCase) MoveColumnToPosition(ctx context.Context, id, position int) error {
-	return c.columnRepo.MoveColumnToPosition(ctx, id, position)
+func (c ColumnUseCase) MoveColumnToPosition(ctx context.Context, columnID, position int) error {
+	return c.columnRepo.MoveColumnToPosition(ctx, columnID, position)
 }
 
-func (c ColumnUseCase) DeleteColumn(ctx context.Context, id int) error {
-	return c.columnRepo.DeleteColumn(ctx, id)
+func (c ColumnUseCase) DeleteColumn(ctx context.Context, columnID int) error {
+	return c.columnRepo.DeleteColumn(ctx, columnID)
 }
 
-func (c ColumnUseCase) GetColumn(ctx context.Context, id string) (*models.Column, error) {
-	return c.columnRepo.GetColumn(ctx, id)
+func (c ColumnUseCase) GetColumn(ctx context.Context, columnID int) (*models.Column, error) {
+	return c.columnRepo.GetColumn(ctx, columnID)
 }
 
-func (c ColumnUseCase) FetchColumns(ctx context.Context, projectID string) ([]*models.Column, error) {
+func (c ColumnUseCase) FetchColumns(ctx context.Context, projectID int) ([]*models.Column, error) {
 	return c.columnRepo.FetchColumns(ctx, projectID)
 }
