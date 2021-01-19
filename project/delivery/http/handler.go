@@ -27,9 +27,13 @@ type createInput struct {
 
 func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	input := new(createInput)
-	json.NewDecoder(r.Body).Decode(&input)
-
-	err := h.useCase.CreateProject(r.Context(), input.Name, input.Description)
+	err := json.NewDecoder(r.Body).Decode(&input)
+	if err != nil {
+		log.Println(err)
+		respondWithError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	err = h.useCase.CreateProject(r.Context(), input.Name, input.Description)
 	if err != nil {
 		log.Println(err)
 		respondWithError(w, http.StatusInternalServerError, err.Error())
@@ -46,15 +50,20 @@ type updateInput struct {
 
 func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 	input := new(updateInput)
-	json.NewDecoder(r.Body).Decode(&input)
+	err := json.NewDecoder(r.Body).Decode(&input)
+	if err != nil {
+		log.Println(err)
+		respondWithError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
 	input.ID, _ = strconv.Atoi(chi.URLParam(r, "id"))
 
-	err := h.useCase.UpdateProject(r.Context(), input.Name, input.Description, input.ID)
+	err = h.useCase.UpdateProject(r.Context(), input.Name, input.Description, input.ID)
 	if err != nil {
 		log.Println(err)
 		respondWithError(w, http.StatusInternalServerError, err.Error())
 	} else {
-		respondwithJSON(w, http.StatusCreated, map[string]string{"message": "Project successfully updated"})
+		respondwithJSON(w, http.StatusOK, map[string]string{"message": "Project successfully updated"})
 	}
 }
 
@@ -66,7 +75,7 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 		log.Println(err)
 		respondWithError(w, http.StatusInternalServerError, err.Error())
 	} else {
-		respondwithJSON(w, http.StatusOK, map[string]string{"message": "Project successfully deleted"})
+		respondwithJSON(w, http.StatusNoContent, map[string]string{"message": "Project successfully deleted"})
 	}
 }
 

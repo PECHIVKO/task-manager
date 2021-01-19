@@ -11,11 +11,15 @@ import (
 
 const (
 	insertTaskQuery = `insert into tasks (task_name, task_description, column_id, priority)
-								  values ($1, $2, $3, (select max priority from tasks where column_id = $3)+1);`
-	checkForColumnExists = `select exists
-						(select 1 from columns where column_id = $1 and project_id =
-							(select project_id from columns where column_id =
-								(select column_id from tasks where task_id = $1)));`
+								  values ($1, $2, $3, (
+									select coalesce (
+										(select max (priority) from tasks where column_id = $3)+1,
+										0)));`
+	checkColumnInThisProject = `select exists
+								(select 1 from columns where column_id = $1 and project_id =
+									(select project_id from columns where column_id =
+										(select column_id from tasks where task_id = $2)));`
+	checkForColumnExists    = "select exists (select 1 from columns where column_id = $1);"
 	checkForTaskExists      = "select exists (select 1 from tasks where task_id = $1);"
 	deleteTaskQuery         = "delete from tasks where task_id = $1;"
 	deleteCommentsQuery     = "delete from comments where task_id =$1"
@@ -24,7 +28,6 @@ const (
 	updateTaskPriorityQuery = "update tasks set priority = $1 where task_id = $2;"
 	updateTaskQuery         = "update tasks set task_name = $1, task_description = $2 where task_id = $3;"
 	moveToColumnQuery       = "update tasks set column_id = $2 where task_id = $1;"
-	getMaxPriority          = "select max priority from tasks where column_id = $1;"
 )
 
 type Task struct {
@@ -58,6 +61,15 @@ func isColumnExists(tx *sql.Tx, ctx context.Context, columnID int) (isExists boo
 	err = tx.QueryRow(checkForColumnExists, columnID).Scan(&isExists)
 	if err != nil {
 		err = fmt.Errorf("task repository: isColumnExists() func error : %w", err)
+		return false, err
+	}
+	return isExists, err
+}
+
+func isInThisProject(tx *sql.Tx, ctx context.Context, columnID, taskID int) (isExists bool, err error) {
+	err = tx.QueryRow(checkColumnInThisProject, columnID, taskID).Scan(&isExists)
+	if err != nil {
+		err = fmt.Errorf("task repository: isInThisProject() func error : %w", err)
 		return false, err
 	}
 	return isExists, err
@@ -173,23 +185,23 @@ func (r TaskRepository) DeleteTask(ctx context.Context, taskID int) error {
 
 	result, err := tx.ExecContext(ctx, deleteCommentsQuery, taskID)
 	if err != nil {
-		err = fmt.Errorf("task repository: DeleteTask: exec query error : %w", err)
+		err = fmt.Errorf("task repository: DeleteTask: exec deleteCommentsQuery error : %w", err)
 		return err
 	}
-	rows, err := result.RowsAffected()
+	commentsDeleted, err := result.RowsAffected()
 	if err != nil {
-		err = fmt.Errorf("task repository: DeleteTask: get RowsAffected error : %w", err)
+		err = fmt.Errorf("task repository: DeleteTask: get deleteCommentsQuery RowsAffected error : %w", err)
 		return err
 	}
 
 	result, err = tx.ExecContext(ctx, deleteTaskQuery, taskID)
 	if err != nil {
-		err = fmt.Errorf("task repository: DeleteTask: exec query error : %w", err)
+		err = fmt.Errorf("task repository: DeleteTask: exec deleteTaskQuery error : %w", err)
 		return err
 	}
-	rows, err = result.RowsAffected()
+	tasksDeleted, err := result.RowsAffected()
 	if err != nil {
-		err = fmt.Errorf("task repository: DeleteTask: get RowsAffected error : %w", err)
+		err = fmt.Errorf("task repository: DeleteTask: get deleteTaskQuery RowsAffected error : %w", err)
 		return err
 	}
 
@@ -197,8 +209,8 @@ func (r TaskRepository) DeleteTask(ctx context.Context, taskID int) error {
 	if err != nil {
 		return err
 	}
-
-	log.Println("deleted tasks: ", rows)
+	log.Println("deleted comments: ", commentsDeleted)
+	log.Println("deleted tasks: ", tasksDeleted)
 	return err
 }
 
@@ -293,12 +305,12 @@ func (r TaskRepository) MoveToColumn(ctx context.Context, taskID, columnID int) 
 		return err
 	}
 
-	isExists, err = isColumnExists(tx, ctx, columnID)
+	isExists, err = isInThisProject(tx, ctx, columnID, taskID)
 	if err != nil {
 		return err
 	}
 	if !isExists {
-		err = fmt.Errorf("Column ID %d does not exists", columnID)
+		err = fmt.Errorf("Column ID %d does not exists in this project", columnID)
 		return err
 	}
 

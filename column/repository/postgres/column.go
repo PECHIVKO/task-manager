@@ -224,14 +224,14 @@ func (r ColumnRepository) DeleteColumn(ctx context.Context, columnID int) error 
 		return err
 	}
 
-	var rows int64
+	var deletedColumns, movedTasks int64
 	if projectColumnsCount > 1 {
 		result, err := tx.ExecContext(ctx, moveTasksQuery, columnID)
 		if err != nil {
 			err = fmt.Errorf("column repository: DeleteColumn: exec moveTasksQuery error : %w", err)
 			return err
 		}
-		rows, err = result.RowsAffected()
+		movedTasks, err = result.RowsAffected()
 		if err != nil {
 			err = fmt.Errorf("column repository: DeleteColumn: get moveTasksQuery RowsAffected error : %w", err)
 			return err
@@ -247,13 +247,14 @@ func (r ColumnRepository) DeleteColumn(ctx context.Context, columnID int) error 
 			err = fmt.Errorf("column repository: DeleteColumn: exec deleteColumnQuery error : %w", err)
 			return err
 		}
-		rows, err = result.RowsAffected()
+		deletedColumns, err = result.RowsAffected()
 		if err != nil {
 			err = fmt.Errorf("column repository: DeleteColumn: get deleteColumnQuery RowsAffected error : %w", err)
 			return err
 		}
 	} else {
 		err = fmt.Errorf("Can not delete last column")
+		return err
 	}
 
 	err = tx.Commit()
@@ -261,7 +262,8 @@ func (r ColumnRepository) DeleteColumn(ctx context.Context, columnID int) error 
 		return err
 	}
 
-	log.Println("deleted columns: ", rows)
+	log.Println("tasks moved: ", movedTasks)
+	log.Println("columns deleted: ", deletedColumns)
 	return err
 }
 
@@ -336,37 +338,37 @@ func (r ColumnRepository) MoveColumnToPosition(ctx context.Context, columnID, po
 		return err
 	}
 
-	var displaceColumnsQuery string
-	switch {
-	case currentPosition > position:
-		displaceColumnsQuery = moveLeftQuery
-	case currentPosition < position:
-		displaceColumnsQuery = moveRightQuery
-	default:
-		err = fmt.Errorf("Column is already on wanted position")
-		return err
-	}
+	var displacedRows, movedRows int64
+	if currentPosition != position {
+		var displaceColumnsQuery string
+		switch {
+		case currentPosition > position:
+			displaceColumnsQuery = moveLeftQuery
+		case currentPosition < position:
+			displaceColumnsQuery = moveRightQuery
+		}
 
-	result, err := tx.ExecContext(ctx, displaceColumnsQuery, columnID, position)
-	if err != nil {
-		err = fmt.Errorf("column repository: MoveColumnToPosition: exec displaceColumnsQuery error : %w", err)
-		return err
-	}
-	displacedRows, err := result.RowsAffected()
-	if err != nil {
-		err = fmt.Errorf("column repository: MoveColumnToPosition: get displacedRowsAffected error : %w", err)
-		return err
-	}
+		result, err := tx.ExecContext(ctx, displaceColumnsQuery, columnID, position)
+		if err != nil {
+			err = fmt.Errorf("column repository: MoveColumnToPosition: exec displaceColumnsQuery error : %w", err)
+			return err
+		}
+		displacedRows, err = result.RowsAffected()
+		if err != nil {
+			err = fmt.Errorf("column repository: MoveColumnToPosition: get displacedRowsAffected error : %w", err)
+			return err
+		}
 
-	result, err = tx.ExecContext(ctx, moveToPositionQuery, columnID, position)
-	if err != nil {
-		err = fmt.Errorf("column repository: MoveColumnToPosition: exec moveToPositionQuery error : %w", err)
-		return err
-	}
-	movedRows, err := result.RowsAffected()
-	if err != nil {
-		err = fmt.Errorf("column repository: MoveColumnToPosition: get movedRowsAffected error : %w", err)
-		return err
+		result, err = tx.ExecContext(ctx, moveToPositionQuery, columnID, position)
+		if err != nil {
+			err = fmt.Errorf("column repository: MoveColumnToPosition: exec moveToPositionQuery error : %w", err)
+			return err
+		}
+		movedRows, err = result.RowsAffected()
+		if err != nil {
+			err = fmt.Errorf("column repository: MoveColumnToPosition: get movedRowsAffected error : %w", err)
+			return err
+		}
 	}
 
 	err = tx.Commit()

@@ -27,9 +27,13 @@ type createInput struct {
 
 func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	input := new(createInput)
-	json.NewDecoder(r.Body).Decode(&input)
-
-	err := h.useCase.CreateColumn(r.Context(), input.Name, input.ProjectID)
+	err := json.NewDecoder(r.Body).Decode(&input)
+	if err != nil {
+		log.Println(err)
+		respondWithError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	err = h.useCase.CreateColumn(r.Context(), input.Name, input.ProjectID)
 	if err != nil {
 		log.Println(err)
 		respondWithError(w, http.StatusInternalServerError, err.Error())
@@ -45,15 +49,20 @@ type updateNameInput struct {
 
 func (h *Handler) UpdateName(w http.ResponseWriter, r *http.Request) {
 	input := new(updateNameInput)
-	json.NewDecoder(r.Body).Decode(&input)
+	err := json.NewDecoder(r.Body).Decode(&input)
+	if err != nil {
+		log.Println(err)
+		respondWithError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
 	input.ID, _ = strconv.Atoi(chi.URLParam(r, "id"))
 
-	err := h.useCase.UpdateColumnName(r.Context(), input.Name, input.ID)
+	err = h.useCase.UpdateColumnName(r.Context(), input.Name, input.ID)
 	if err != nil {
 		log.Println(err)
 		respondWithError(w, http.StatusInternalServerError, err.Error())
 	} else {
-		respondwithJSON(w, http.StatusCreated, map[string]string{"message": "Column successfully updated"})
+		respondwithJSON(w, http.StatusOK, map[string]string{"message": "Column successfully updated"})
 	}
 }
 
@@ -66,7 +75,7 @@ func (h *Handler) Move(w http.ResponseWriter, r *http.Request) {
 		log.Println(err)
 		respondWithError(w, http.StatusInternalServerError, err.Error())
 	} else {
-		respondwithJSON(w, http.StatusCreated, map[string]string{"message": "Column successfully updated"})
+		respondwithJSON(w, http.StatusOK, map[string]string{"message": "Column successfully updated"})
 	}
 }
 
@@ -78,7 +87,7 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 		log.Println(err)
 		respondWithError(w, http.StatusInternalServerError, err.Error())
 	} else {
-		respondwithJSON(w, http.StatusOK, map[string]string{"message": "Column successfully deleted"})
+		respondwithJSON(w, http.StatusNoContent, map[string]string{"message": "Column successfully deleted"})
 	}
 }
 

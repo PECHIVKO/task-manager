@@ -18,7 +18,7 @@ const (
 							 where project_id = $3;`
 	deleteTasksQuery = `delete from tasks where column_id in (
 							select column_id from columns where project_id = $1)`
-	deleteCommentsQuery = `delete from comments where task_id (
+	deleteCommentsQuery = `delete from comments where task_id in (
 								select task_id from tasks where column_id in (
 									select column_id from columns where project_id = $1))`
 	deleteColumnsQuery    = "delete from columns where project_id = $1"
@@ -128,7 +128,6 @@ func (r ProjectRepository) FetchProjects(ctx context.Context) ([]*models.Project
 	return toModels(projects), nil
 }
 
-// TODO delete coments tasks and columns
 func (r ProjectRepository) DeleteProject(ctx context.Context, projectID int) error {
 
 	tx, err := r.DB.BeginTx(ctx, nil)

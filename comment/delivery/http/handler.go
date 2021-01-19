@@ -27,9 +27,13 @@ type createInput struct {
 
 func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	input := new(createInput)
-	json.NewDecoder(r.Body).Decode(&input)
-
-	err := h.useCase.CreateComment(r.Context(), input.Comment, input.TaskID)
+	err := json.NewDecoder(r.Body).Decode(&input)
+	if err != nil {
+		log.Println(err)
+		respondWithError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	err = h.useCase.CreateComment(r.Context(), input.Comment, input.TaskID)
 	if err != nil {
 		log.Println(err)
 		respondWithError(w, http.StatusInternalServerError, err.Error())
@@ -45,15 +49,20 @@ type updateNameInput struct {
 
 func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 	input := new(updateNameInput)
-	json.NewDecoder(r.Body).Decode(&input)
+	err := json.NewDecoder(r.Body).Decode(&input)
+	if err != nil {
+		log.Println(err)
+		respondWithError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
 	input.CommentID, _ = strconv.Atoi(chi.URLParam(r, "id"))
 
-	err := h.useCase.UpdateComment(r.Context(), input.Comment, input.CommentID)
+	err = h.useCase.UpdateComment(r.Context(), input.Comment, input.CommentID)
 	if err != nil {
 		log.Println(err)
 		respondWithError(w, http.StatusInternalServerError, err.Error())
 	} else {
-		respondwithJSON(w, http.StatusCreated, map[string]string{"message": "Comment successfully updated"})
+		respondwithJSON(w, http.StatusOK, map[string]string{"message": "Comment successfully updated"})
 	}
 }
 
@@ -65,7 +74,7 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 		log.Println(err)
 		respondWithError(w, http.StatusInternalServerError, err.Error())
 	} else {
-		respondwithJSON(w, http.StatusOK, map[string]string{"message": "Comment successfully deleted"})
+		respondwithJSON(w, http.StatusNoContent, map[string]string{"message": "Comment successfully deleted"})
 	}
 }
 

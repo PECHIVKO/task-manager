@@ -28,9 +28,14 @@ type createInput struct {
 
 func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	input := new(createInput)
-	json.NewDecoder(r.Body).Decode(&input)
+	err := json.NewDecoder(r.Body).Decode(&input)
+	if err != nil {
+		log.Println(err)
+		respondWithError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
 
-	err := h.useCase.CreateTask(r.Context(), input.Name, input.Description, input.ColumnID)
+	err = h.useCase.CreateTask(r.Context(), input.Name, input.Description, input.ColumnID)
 	if err != nil {
 		log.Println(err)
 		respondWithError(w, http.StatusInternalServerError, err.Error())
@@ -47,10 +52,15 @@ type updateNameInput struct {
 
 func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 	input := new(updateNameInput)
-	json.NewDecoder(r.Body).Decode(&input)
+	err := json.NewDecoder(r.Body).Decode(&input)
+	if err != nil {
+		log.Println(err)
+		respondWithError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
 	input.ID, _ = strconv.Atoi(chi.URLParam(r, "id"))
 
-	err := h.useCase.UpdateTask(r.Context(), input.Name, input.Description, input.ID)
+	err = h.useCase.UpdateTask(r.Context(), input.Name, input.Description, input.ID)
 	if err != nil {
 		log.Println(err)
 		respondWithError(w, http.StatusInternalServerError, err.Error())
@@ -68,7 +78,7 @@ func (h *Handler) Move(w http.ResponseWriter, r *http.Request) {
 		log.Println(err)
 		respondWithError(w, http.StatusInternalServerError, err.Error())
 	} else {
-		respondwithJSON(w, http.StatusCreated, map[string]string{"message": "Task successfully updated"})
+		respondwithJSON(w, http.StatusOK, map[string]string{"message": "Task successfully moved"})
 	}
 }
 
@@ -81,7 +91,7 @@ func (h *Handler) ChangePriority(w http.ResponseWriter, r *http.Request) {
 		log.Println(err)
 		respondWithError(w, http.StatusInternalServerError, err.Error())
 	} else {
-		respondwithJSON(w, http.StatusCreated, map[string]string{"message": "Task successfully updated"})
+		respondwithJSON(w, http.StatusOK, map[string]string{"message": "Task successfully updated"})
 	}
 
 }
@@ -94,7 +104,7 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 		log.Println(err)
 		respondWithError(w, http.StatusInternalServerError, err.Error())
 	} else {
-		respondwithJSON(w, http.StatusOK, map[string]string{"message": "Task successfully deleted"})
+		respondwithJSON(w, http.StatusNoContent, map[string]string{"message": "Task successfully deleted"})
 	}
 
 }

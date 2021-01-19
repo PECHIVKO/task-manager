@@ -11,24 +11,25 @@ import (
 )
 
 const (
-	insertCommentQuery = `insert into comments (task_id, text)
+	insertCommentQuery = `insert into comments (task_id, comment)
 								  values ($1, $2);`
-	checkForTaskExists = `select exists
-						(select 1 from tasks where task_id = $1 and project_id =
-							(select project_id from tasks where task_id =
-								(select task_id from comments where comment_id = $1)));`
+	// checkForTaskExists = `select exists
+	// 					(select 1 from tasks where task_id = $1 and project_id =
+	// 						(select project_id from tasks where task_id =
+	// 							(select task_id from comments where comment_id = $1)));`
+	checkForTaskExists    = "select exists (select 1 from tasks where task_id = $1);"
 	checkForCommentExists = "select exists (select 1 from comments where comment_id = $1);"
 	deleteCommentQuery    = "delete from comments where comment_id = $1;"
 	getCommentQuery       = "select * from comments where comment_id = $1;"
-	fetchCommentsQuery    = "select * from comments where task_id = $1 order by creation_date;"
-	updateCommentQuery    = "update comments set comment = $1 where comment_id = $3;"
+	fetchCommentsQuery    = "select * from comments where task_id = $1 order by creation_date desc;"
+	updateCommentQuery    = "update comments set comment = $1 where comment_id = $2;"
 )
 
 type Comment struct {
 	ID      int       `json:"comment_id"`
 	Task    int       `json:"task_id"`
 	Date    time.Time `json:"creation_date"`
-	Comment string    `json:"text"`
+	Comment string    `json:"comment"`
 }
 
 type CommentRepository struct {
@@ -58,39 +59,6 @@ func isTaskExists(tx *sql.Tx, ctx context.Context, taskID int) (isExists bool, e
 	}
 	return isExists, err
 }
-
-// func getTaskID(tx *sql.Tx, ctx context.Context, id int) (taskID int, err error) {
-// 	err = tx.QueryRowContext(ctx, getCurrentTaskIDQuery, id).Scan(&taskID)
-// 	if err != nil {
-// 		err = fmt.Errorf("comment repository: getTaskID() func error : %w", err)
-// 		return -1, err
-// 	}
-// 	return taskID, err
-// }
-
-// func getMaxPriorityForTask(tx *sql.Tx, ctx context.Context, taskID int) (priority int, err error) {
-// 	err = tx.QueryRowContext(ctx, getMaxPriority, taskID).Scan(&priority)
-// 	if err != nil {
-// 		err = fmt.Errorf("comment repository: getMaxPriorityForTask() func error : %w", err)
-// 		return -1, err
-// 	}
-// 	return priority, err
-// }
-
-// func getTaskCommentsCount(tx *sql.Tx, ctx context.Context, id int) (count int, err error) {
-
-// 	taskID, err := getTaskID(tx, ctx, id)
-// 	if err != nil {
-// 		return -1, err
-// 	}
-
-// 	err = tx.QueryRowContext(ctx, getTaskCommentsCountQuery, taskID).Scan(&count)
-// 	if err != nil {
-// 		err = fmt.Errorf("comment repository: getTaskCommentsCount() func error : %w", err)
-// 		return -1, err
-// 	}
-// 	return count, err
-// }
 
 func (r CommentRepository) CreateComment(ctx context.Context, c *models.Comment) error {
 
@@ -239,12 +207,12 @@ func (r CommentRepository) UpdateComment(ctx context.Context, c *models.Comment)
 
 	result, err := tx.ExecContext(ctx, updateCommentQuery, c.Comment, c.ID)
 	if err != nil {
-		err = fmt.Errorf("comment repository: UpdateCommentName: exec query error : %w", err)
+		err = fmt.Errorf("comment repository: UpdateComment: exec query error : %w", err)
 		return err
 	}
 	rows, err := result.RowsAffected()
 	if err != nil {
-		err = fmt.Errorf("comment repository: UpdateCommentName: get RowsAffected error : %w", err)
+		err = fmt.Errorf("comment repository: UpdateComment: get RowsAffected error : %w", err)
 		return err
 	}
 

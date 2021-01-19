@@ -7,15 +7,15 @@ CREATE TABLE projects (
 CREATE TABLE columns (
   column_id serial PRIMARY KEY,
   project_id integer NOT NULL REFERENCES projects,
-  position integer NOT NULL,
+  position integer NOT NULL CHECK (position >= 0),
   column_name VARCHAR(255) NOT NULL
 );
 
 CREATE TABLE tasks (
   task_id serial PRIMARY KEY,
   column_id integer NOT NULL REFERENCES columns,
-  priority integer NOT NULL,
-  task_name VARCHAR(500) NOT NULL UNIQUE,
+  priority integer NOT NULL CHECK (priority >= 0),
+  task_name VARCHAR(500) NOT NULL,
   task_description VARCHAR(5000) NOT NULL
 );
 
@@ -26,3 +26,5 @@ CREATE TABLE comments (
   comment VARCHAR(5000) NOT NULL
 );
 
+-- grant all privileges on all tables in schema "public" to manager;
+-- grant all privileges on all sequences in schema "public" to manager;
