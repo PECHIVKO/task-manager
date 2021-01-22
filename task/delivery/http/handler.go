@@ -58,8 +58,11 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 		respondWithError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	input.ID, _ = strconv.Atoi(chi.URLParam(r, "id"))
-
+	input.ID, err = strconv.Atoi(chi.URLParam(r, "id"))
+	if err != nil {
+		log.Println(err)
+		respondWithError(w, http.StatusInternalServerError, err.Error())
+	}
 	err = h.useCase.UpdateTask(r.Context(), input.Name, input.Description, input.ID)
 	if err != nil {
 		log.Println(err)
@@ -70,10 +73,17 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) Move(w http.ResponseWriter, r *http.Request) {
-	taskID, _ := strconv.Atoi(chi.URLParam(r, "id"))
-	columnID, _ := strconv.Atoi(chi.URLParam(r, "column"))
-
-	err := h.useCase.MoveToColumn(r.Context(), taskID, columnID)
+	taskID, err := strconv.Atoi(chi.URLParam(r, "id"))
+	if err != nil {
+		log.Println(err)
+		respondWithError(w, http.StatusInternalServerError, err.Error())
+	}
+	columnID, err := strconv.Atoi(chi.URLParam(r, "column"))
+	if err != nil {
+		log.Println(err)
+		respondWithError(w, http.StatusInternalServerError, err.Error())
+	}
+	err = h.useCase.MoveToColumn(r.Context(), taskID, columnID)
 	if err != nil {
 		log.Println(err)
 		respondWithError(w, http.StatusInternalServerError, err.Error())
@@ -83,10 +93,17 @@ func (h *Handler) Move(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) ChangePriority(w http.ResponseWriter, r *http.Request) {
-	taskID, _ := strconv.Atoi(chi.URLParam(r, "id"))
-	priority, _ := strconv.Atoi(chi.URLParam(r, "priority"))
-
-	err := h.useCase.ChangeTaskPriority(r.Context(), taskID, priority)
+	taskID, err := strconv.Atoi(chi.URLParam(r, "id"))
+	if err != nil {
+		log.Println(err)
+		respondWithError(w, http.StatusInternalServerError, err.Error())
+	}
+	priority, err := strconv.Atoi(chi.URLParam(r, "priority"))
+	if err != nil {
+		log.Println(err)
+		respondWithError(w, http.StatusInternalServerError, err.Error())
+	}
+	err = h.useCase.ChangeTaskPriority(r.Context(), taskID, priority)
 	if err != nil {
 		log.Println(err)
 		respondWithError(w, http.StatusInternalServerError, err.Error())
@@ -97,9 +114,12 @@ func (h *Handler) ChangePriority(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
-	taskID, _ := strconv.Atoi(chi.URLParam(r, "id"))
-
-	err := h.useCase.DeleteTask(r.Context(), taskID)
+	taskID, err := strconv.Atoi(chi.URLParam(r, "id"))
+	if err != nil {
+		log.Println(err)
+		respondWithError(w, http.StatusInternalServerError, err.Error())
+	}
+	err = h.useCase.DeleteTask(r.Context(), taskID)
 	if err != nil {
 		log.Println(err)
 		respondWithError(w, http.StatusInternalServerError, err.Error())
@@ -110,8 +130,11 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
-	taskID, _ := strconv.Atoi(chi.URLParam(r, "id"))
-
+	taskID, err := strconv.Atoi(chi.URLParam(r, "id"))
+	if err != nil {
+		log.Println(err)
+		respondWithError(w, http.StatusInternalServerError, err.Error())
+	}
 	task, err := h.useCase.GetTask(r.Context(), taskID)
 	if err != nil {
 		log.Println(err)
@@ -123,8 +146,11 @@ func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) Fetch(w http.ResponseWriter, r *http.Request) {
-	columnID, _ := strconv.Atoi(chi.URLParam(r, "column_id"))
-
+	columnID, err := strconv.Atoi(chi.URLParam(r, "column_id"))
+	if err != nil {
+		log.Println(err)
+		respondWithError(w, http.StatusInternalServerError, err.Error())
+	}
 	tasks, err := h.useCase.FetchTasks(r.Context(), columnID)
 	if err != nil {
 		log.Println(err)

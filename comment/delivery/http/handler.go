@@ -55,8 +55,11 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 		respondWithError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	input.CommentID, _ = strconv.Atoi(chi.URLParam(r, "id"))
-
+	input.CommentID, err = strconv.Atoi(chi.URLParam(r, "id"))
+	if err != nil {
+		log.Println(err)
+		respondWithError(w, http.StatusInternalServerError, err.Error())
+	}
 	err = h.useCase.UpdateComment(r.Context(), input.Comment, input.CommentID)
 	if err != nil {
 		log.Println(err)
@@ -67,9 +70,12 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
-	commentID, _ := strconv.Atoi(chi.URLParam(r, "id"))
-
-	err := h.useCase.DeleteComment(r.Context(), commentID)
+	commentID, err := strconv.Atoi(chi.URLParam(r, "id"))
+	if err != nil {
+		log.Println(err)
+		respondWithError(w, http.StatusInternalServerError, err.Error())
+	}
+	err = h.useCase.DeleteComment(r.Context(), commentID)
 	if err != nil {
 		log.Println(err)
 		respondWithError(w, http.StatusInternalServerError, err.Error())
@@ -79,8 +85,11 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
-	commentID, _ := strconv.Atoi(chi.URLParam(r, "id"))
-
+	commentID, err := strconv.Atoi(chi.URLParam(r, "id"))
+	if err != nil {
+		log.Println(err)
+		respondWithError(w, http.StatusInternalServerError, err.Error())
+	}
 	com, err := h.useCase.GetComment(r.Context(), commentID)
 	if err != nil {
 		log.Println(err)
@@ -91,8 +100,11 @@ func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) Fetch(w http.ResponseWriter, r *http.Request) {
-	taskID, _ := strconv.Atoi(chi.URLParam(r, "task_id"))
-
+	taskID, err := strconv.Atoi(chi.URLParam(r, "task_id"))
+	if err != nil {
+		log.Println(err)
+		respondWithError(w, http.StatusInternalServerError, err.Error())
+	}
 	coms, err := h.useCase.FetchComments(r.Context(), taskID)
 	if err != nil {
 		log.Println(err)

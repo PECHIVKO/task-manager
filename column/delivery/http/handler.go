@@ -55,8 +55,11 @@ func (h *Handler) UpdateName(w http.ResponseWriter, r *http.Request) {
 		respondWithError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	input.ID, _ = strconv.Atoi(chi.URLParam(r, "id"))
-
+	input.ID, err = strconv.Atoi(chi.URLParam(r, "id"))
+	if err != nil {
+		log.Println(err)
+		respondWithError(w, http.StatusInternalServerError, err.Error())
+	}
 	err = h.useCase.UpdateColumnName(r.Context(), input.Name, input.ID)
 	if err != nil {
 		log.Println(err)
@@ -67,10 +70,17 @@ func (h *Handler) UpdateName(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) Move(w http.ResponseWriter, r *http.Request) {
-	id, _ := strconv.Atoi(chi.URLParam(r, "id"))
-	pos, _ := strconv.Atoi(chi.URLParam(r, "pos"))
-
-	err := h.useCase.MoveColumnToPosition(r.Context(), id, pos)
+	id, err := strconv.Atoi(chi.URLParam(r, "id"))
+	if err != nil {
+		log.Println(err)
+		respondWithError(w, http.StatusInternalServerError, err.Error())
+	}
+	pos, err := strconv.Atoi(chi.URLParam(r, "pos"))
+	if err != nil {
+		log.Println(err)
+		respondWithError(w, http.StatusInternalServerError, err.Error())
+	}
+	err = h.useCase.MoveColumnToPosition(r.Context(), id, pos)
 	if err != nil {
 		log.Println(err)
 		respondWithError(w, http.StatusInternalServerError, err.Error())
@@ -80,9 +90,12 @@ func (h *Handler) Move(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
-	id, _ := strconv.Atoi(chi.URLParam(r, "id"))
-
-	err := h.useCase.DeleteColumn(r.Context(), id)
+	id, err := strconv.Atoi(chi.URLParam(r, "id"))
+	if err != nil {
+		log.Println(err)
+		respondWithError(w, http.StatusInternalServerError, err.Error())
+	}
+	err = h.useCase.DeleteColumn(r.Context(), id)
 	if err != nil {
 		log.Println(err)
 		respondWithError(w, http.StatusInternalServerError, err.Error())
@@ -92,8 +105,11 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
-	id, _ := strconv.Atoi(chi.URLParam(r, "id"))
-
+	id, err := strconv.Atoi(chi.URLParam(r, "id"))
+	if err != nil {
+		log.Println(err)
+		respondWithError(w, http.StatusInternalServerError, err.Error())
+	}
 	col, err := h.useCase.GetColumn(r.Context(), id)
 	if err != nil {
 		log.Println(err)
@@ -104,8 +120,11 @@ func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) Fetch(w http.ResponseWriter, r *http.Request) {
-	projectID, _ := strconv.Atoi(chi.URLParam(r, "project_id"))
-
+	projectID, err := strconv.Atoi(chi.URLParam(r, "project_id"))
+	if err != nil {
+		log.Println(err)
+		respondWithError(w, http.StatusInternalServerError, err.Error())
+	}
 	cols, err := h.useCase.FetchColumns(r.Context(), projectID)
 	if err != nil {
 		log.Println(err)

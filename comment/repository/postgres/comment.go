@@ -11,8 +11,7 @@ import (
 )
 
 const (
-	insertCommentQuery = `insert into comments (task_id, comment)
-								  values ($1, $2);`
+	insertCommentQuery    = "insert into comments (task_id, comment) values ($1, $2);"
 	checkForTaskExists    = "select exists (select 1 from tasks where task_id = $1);"
 	checkForCommentExists = "select exists (select 1 from comments where comment_id = $1);"
 	deleteCommentQuery    = "delete from comments where comment_id = $1;"
