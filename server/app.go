@@ -2,7 +2,6 @@ package server
 
 import (
 	"database/sql"
-	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -16,6 +15,7 @@ import (
 	commentrepo "github.com/PECHIVKO/task-manager/comment/repository/postgres"
 	commentusecase "github.com/PECHIVKO/task-manager/comment/usecase"
 	"github.com/PECHIVKO/task-manager/config"
+	"github.com/PECHIVKO/task-manager/db"
 	"github.com/PECHIVKO/task-manager/project"
 	phttp "github.com/PECHIVKO/task-manager/project/delivery/http"
 	projectrepo "github.com/PECHIVKO/task-manager/project/repository/postgres"
@@ -89,13 +89,17 @@ func initDB() *sql.DB {
 
 	mainConfig, openCfgErr := config.NewConfig(configPath)
 	if openCfgErr != nil {
-		panic("cannot open config: " + openCfgErr.Error())
+		panic("Cannot open config: " + openCfgErr.Error())
 	}
 
-	conn, err := sql.Open("postgres", mainConfig.Database.DbSource)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Unable to connect to database: %v\n", err)
-		os.Exit(1)
+	conn, dbConnErr := sql.Open("postgres", mainConfig.Database.DbSource)
+	if dbConnErr != nil {
+		panic("Cannot connect database: " + dbConnErr.Error())
+	}
+
+	migrationErr := db.RunMigrations(mainConfig.Database.DbSource, mainConfig.Database.MigrationsSource)
+	if migrationErr != nil {
+		panic("Migrations error: " + migrationErr.Error())
 	}
 
 	return conn

@@ -13,8 +13,8 @@ type Config struct {
 }
 
 type Database struct {
-	//	MigrationsSource string `yaml:"migrations_source" validate:"required"`
-	DbSource string `yaml:"db_source" validate:"required"`
+	MigrationsSource string `yaml:"migrations_source" validate:"required"`
+	DbSource         string `yaml:"db_source" validate:"required"`
 }
 
 func NewConfig(configPath string) (*Config, error) {
