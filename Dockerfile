@@ -14,6 +14,5 @@ COPY --from=builder /go/src/github.com/PECHIVKO/task-manager/db/migrations /app/
 COPY ./cmd/api/config_docker.yaml /app/config.yaml
 
 WORKDIR /app/
-RUN chmod +x /app/task-manager
 EXPOSE 8181 8181
 ENTRYPOINT ["/app/task-manager"]
