@@ -5,7 +5,7 @@
 use `docker-compose build` & `docker-compose up` commands  
 *OR*  
 use commands:  
-`docker run --name postgresqldb -e POSTGRES_USER=manager -e POSTGRES_PASSWORD=task -p 5432:5432 -v /data:/var/lib/postgresql/data -d postgres`
+`docker run --name postgresqldb -e POSTGRES_USER=manager -e POSTGRES_PASSWORD=task -p 5432:5432 -v /data:/var/lib/postgresql/data -d postgres`  
 `docker exec -i postgresqldb psql -U manager -c "CREATE DATABASE taskmanager WITH ENCODING='UTF8' OWNER=manager;"`  
 to create database and  
 `cd cmd/api`  
