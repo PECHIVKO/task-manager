@@ -44,14 +44,14 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-type updateNameInput struct {
+type updateInput struct {
 	ID          int    `json:"task_id"`
 	Name        string `json:"task_name"`
 	Description string `json:"task_description"`
 }
 
 func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
-	input := new(updateNameInput)
+	input := new(updateInput)
 	err := json.NewDecoder(r.Body).Decode(&input)
 	if err != nil {
 		log.Println(err)
@@ -68,22 +68,29 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 		log.Println(err)
 		respondWithError(w, http.StatusInternalServerError, err.Error())
 	} else {
-		respondwithJSON(w, http.StatusCreated, map[string]string{"message": "Task successfully updated"})
+		respondwithJSON(w, http.StatusOK, map[string]string{"message": "Task successfully updated"})
 	}
 }
 
+type moveInput struct {
+	ID     int `json:"task_id"`
+	Column int `json:"column_id"`
+}
+
 func (h *Handler) Move(w http.ResponseWriter, r *http.Request) {
-	taskID, err := strconv.Atoi(chi.URLParam(r, "id"))
+	var err error
+	input := new(moveInput)
+	input.ID, err = strconv.Atoi(chi.URLParam(r, "id"))
 	if err != nil {
 		log.Println(err)
 		respondWithError(w, http.StatusInternalServerError, err.Error())
 	}
-	columnID, err := strconv.Atoi(chi.URLParam(r, "column"))
+	input.Column, err = strconv.Atoi(chi.URLParam(r, "column"))
 	if err != nil {
 		log.Println(err)
 		respondWithError(w, http.StatusInternalServerError, err.Error())
 	}
-	err = h.useCase.MoveToColumn(r.Context(), taskID, columnID)
+	err = h.useCase.MoveToColumn(r.Context(), input.ID, input.Column)
 	if err != nil {
 		log.Println(err)
 		respondWithError(w, http.StatusInternalServerError, err.Error())
@@ -92,18 +99,25 @@ func (h *Handler) Move(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+type priorityInput struct {
+	ID       int `json:"task_id"`
+	Priority int `json:"priority"`
+}
+
 func (h *Handler) ChangePriority(w http.ResponseWriter, r *http.Request) {
-	taskID, err := strconv.Atoi(chi.URLParam(r, "id"))
+	var err error
+	input := new(priorityInput)
+	input.ID, err = strconv.Atoi(chi.URLParam(r, "id"))
 	if err != nil {
 		log.Println(err)
 		respondWithError(w, http.StatusInternalServerError, err.Error())
 	}
-	priority, err := strconv.Atoi(chi.URLParam(r, "priority"))
+	input.Priority, err = strconv.Atoi(chi.URLParam(r, "priority"))
 	if err != nil {
 		log.Println(err)
 		respondWithError(w, http.StatusInternalServerError, err.Error())
 	}
-	err = h.useCase.ChangeTaskPriority(r.Context(), taskID, priority)
+	err = h.useCase.ChangeTaskPriority(r.Context(), input.ID, input.Priority)
 	if err != nil {
 		log.Println(err)
 		respondWithError(w, http.StatusInternalServerError, err.Error())
@@ -113,13 +127,19 @@ func (h *Handler) ChangePriority(w http.ResponseWriter, r *http.Request) {
 
 }
 
+type deleteInput struct {
+	ID int `json:"task"`
+}
+
 func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
-	taskID, err := strconv.Atoi(chi.URLParam(r, "id"))
+	var err error
+	input := new(deleteInput)
+	input.ID, err = strconv.Atoi(chi.URLParam(r, "id"))
 	if err != nil {
 		log.Println(err)
 		respondWithError(w, http.StatusInternalServerError, err.Error())
 	}
-	err = h.useCase.DeleteTask(r.Context(), taskID)
+	err = h.useCase.DeleteTask(r.Context(), input.ID)
 	if err != nil {
 		log.Println(err)
 		respondWithError(w, http.StatusInternalServerError, err.Error())
@@ -129,13 +149,19 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 
 }
 
+type getInput struct {
+	ID int `json:"task_id"`
+}
+
 func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
-	taskID, err := strconv.Atoi(chi.URLParam(r, "id"))
+	var err error
+	input := new(getInput)
+	input.ID, err = strconv.Atoi(chi.URLParam(r, "id"))
 	if err != nil {
 		log.Println(err)
 		respondWithError(w, http.StatusInternalServerError, err.Error())
 	}
-	task, err := h.useCase.GetTask(r.Context(), taskID)
+	task, err := h.useCase.GetTask(r.Context(), input.ID)
 	if err != nil {
 		log.Println(err)
 		respondWithError(w, http.StatusInternalServerError, err.Error())
@@ -145,13 +171,19 @@ func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
 
 }
 
+type fetchInput struct {
+	ID int `json:"column_id"`
+}
+
 func (h *Handler) Fetch(w http.ResponseWriter, r *http.Request) {
-	columnID, err := strconv.Atoi(chi.URLParam(r, "column_id"))
+	var err error
+	input := new(fetchInput)
+	input.ID, err = strconv.Atoi(chi.URLParam(r, "column_id"))
 	if err != nil {
 		log.Println(err)
 		respondWithError(w, http.StatusInternalServerError, err.Error())
 	}
-	tasks, err := h.useCase.FetchTasks(r.Context(), columnID)
+	tasks, err := h.useCase.FetchTasks(r.Context(), input.ID)
 	if err != nil {
 		log.Println(err)
 		respondWithError(w, http.StatusInternalServerError, err.Error())

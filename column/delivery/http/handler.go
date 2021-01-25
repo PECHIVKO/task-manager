@@ -69,18 +69,25 @@ func (h *Handler) UpdateName(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+type moveInput struct {
+	ID       int `json:"column_id"`
+	Position int `json:"position"`
+}
+
 func (h *Handler) Move(w http.ResponseWriter, r *http.Request) {
-	id, err := strconv.Atoi(chi.URLParam(r, "id"))
+	var err error
+	input := new(moveInput)
+	input.ID, err = strconv.Atoi(chi.URLParam(r, "id"))
 	if err != nil {
 		log.Println(err)
 		respondWithError(w, http.StatusInternalServerError, err.Error())
 	}
-	pos, err := strconv.Atoi(chi.URLParam(r, "pos"))
+	input.Position, err = strconv.Atoi(chi.URLParam(r, "pos"))
 	if err != nil {
 		log.Println(err)
 		respondWithError(w, http.StatusInternalServerError, err.Error())
 	}
-	err = h.useCase.MoveColumnToPosition(r.Context(), id, pos)
+	err = h.useCase.MoveColumnToPosition(r.Context(), input.ID, input.Position)
 	if err != nil {
 		log.Println(err)
 		respondWithError(w, http.StatusInternalServerError, err.Error())
@@ -89,13 +96,19 @@ func (h *Handler) Move(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+type deleteInput struct {
+	ID int `json:"column_id"`
+}
+
 func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
-	id, err := strconv.Atoi(chi.URLParam(r, "id"))
+	var err error
+	input := new(deleteInput)
+	input.ID, err = strconv.Atoi(chi.URLParam(r, "id"))
 	if err != nil {
 		log.Println(err)
 		respondWithError(w, http.StatusInternalServerError, err.Error())
 	}
-	err = h.useCase.DeleteColumn(r.Context(), id)
+	err = h.useCase.DeleteColumn(r.Context(), input.ID)
 	if err != nil {
 		log.Println(err)
 		respondWithError(w, http.StatusInternalServerError, err.Error())
@@ -104,13 +117,19 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+type getInput struct {
+	ID int `json:"column_id"`
+}
+
 func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
-	id, err := strconv.Atoi(chi.URLParam(r, "id"))
+	var err error
+	input := new(getInput)
+	input.ID, err = strconv.Atoi(chi.URLParam(r, "id"))
 	if err != nil {
 		log.Println(err)
 		respondWithError(w, http.StatusInternalServerError, err.Error())
 	}
-	col, err := h.useCase.GetColumn(r.Context(), id)
+	col, err := h.useCase.GetColumn(r.Context(), input.ID)
 	if err != nil {
 		log.Println(err)
 		respondWithError(w, http.StatusInternalServerError, err.Error())
@@ -119,13 +138,19 @@ func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+type fetchInput struct {
+	ID int `json:"project_id"`
+}
+
 func (h *Handler) Fetch(w http.ResponseWriter, r *http.Request) {
-	projectID, err := strconv.Atoi(chi.URLParam(r, "project_id"))
+	var err error
+	input := new(fetchInput)
+	input.ID, err = strconv.Atoi(chi.URLParam(r, "project_id"))
 	if err != nil {
 		log.Println(err)
 		respondWithError(w, http.StatusInternalServerError, err.Error())
 	}
-	cols, err := h.useCase.FetchColumns(r.Context(), projectID)
+	cols, err := h.useCase.FetchColumns(r.Context(), input.ID)
 	if err != nil {
 		log.Println(err)
 		respondWithError(w, http.StatusInternalServerError, err.Error())

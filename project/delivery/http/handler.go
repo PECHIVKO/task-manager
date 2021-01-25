@@ -70,13 +70,19 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+type deleteInput struct {
+	ID int `json:"project_id"`
+}
+
 func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
-	id, err := strconv.Atoi(chi.URLParam(r, "id"))
+	var err error
+	input := new(deleteInput)
+	input.ID, err = strconv.Atoi(chi.URLParam(r, "id"))
 	if err != nil {
 		log.Println(err)
 		respondWithError(w, http.StatusInternalServerError, err.Error())
 	}
-	err = h.useCase.DeleteProject(r.Context(), id)
+	err = h.useCase.DeleteProject(r.Context(), input.ID)
 	if err != nil {
 		log.Println(err)
 		respondWithError(w, http.StatusInternalServerError, err.Error())
@@ -85,13 +91,19 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+type getInput struct {
+	ID int `json:"project_id"`
+}
+
 func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
-	id, err := strconv.Atoi(chi.URLParam(r, "id"))
+	var err error
+	input := new(getInput)
+	input.ID, err = strconv.Atoi(chi.URLParam(r, "id"))
 	if err != nil {
 		log.Println(err)
 		respondWithError(w, http.StatusInternalServerError, err.Error())
 	}
-	pr, err := h.useCase.GetProject(r.Context(), id)
+	pr, err := h.useCase.GetProject(r.Context(), input.ID)
 	if err != nil {
 		log.Println(err)
 		respondWithError(w, http.StatusInternalServerError, err.Error())
