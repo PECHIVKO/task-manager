@@ -1,0 +1,3 @@
+database:
+  db_source: "postgres://manager:task@localhost:5432/taskmanager?sslmode=disable"
+  migrations_source: "file://../../db/migrations"

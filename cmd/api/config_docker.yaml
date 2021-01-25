@@ -1,0 +1,3 @@
+database:
+  db_source: "postgres://manager:task@task-manager_database_1:5432/taskmanager?sslmode=disable"
+  migrations_source: "file:///app/migrations"
